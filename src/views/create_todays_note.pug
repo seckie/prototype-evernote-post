@@ -1,0 +1,10 @@
+extends layout
+
+block content
+  h1 Today's note was created
+  p Sign in user: #{user.name}
+  h2= note.title
+  div= note.content
+  p
+    a(href="/") Back to index   
+

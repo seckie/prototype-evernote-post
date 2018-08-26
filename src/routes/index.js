@@ -22,6 +22,7 @@ router.get('/oauth_callback', (req, res, next) => {
   evernoteService.getAccessToken(req).then((oauthToken, client) => {
     req.session.oauthToken = oauthToken;
     evernoteService.getUser(oauthToken).then((user) => {
+      req.session.user = user;
       res.render('oauth_callback', {user: user});
     }, (error) => {
       res.redirect('/');
@@ -30,6 +31,21 @@ router.get('/oauth_callback', (req, res, next) => {
     console.log(error.message);
     res.redirect('/');
   });
+});
+
+router.get('/create_todays_note', (req, res, next) => {
+  if (!req.session.oauthToken) {
+    console.log('No token')
+    res.redirect('/');
+  }
+  evernoteService.createTodaysNote(req.session.oauthToken).then((note) => {
+    res.render('create_todays_note', {
+      user: req.session.user,
+      note: note
+    });
+  }, (error) => {
+    res.redirect('/');
+  })
 });
 
 module.exports = router;
