@@ -2,6 +2,9 @@
 const Evernote = require('evernote');
 const evernoteKey = require('../config/evernote-key.json');
 
+const crypto = require('crypto');
+const secret = 'abcdefg';
+
 class EvernoteService {
   constructor() {
     // initialize OAuth
@@ -84,6 +87,113 @@ class EvernoteService {
         this.makeNote(noteStore, 'Todays note', 'Hi! This is today.\n Foo Bar.', diary).then(resolve, reject);
       }, reject);
 
+    });
+  }
+
+  tempListSpecificNote(oauthToken) {
+    return new Promise((resolve, reject) => {
+      const authenticatedClient = new Evernote.Client({
+        token: oauthToken,
+        sandbox: true,
+        china: false,
+      });
+      const noteStore = authenticatedClient.getNoteStore();
+      var filter = new Evernote.NoteStore.NoteFilter({
+        words: ['2Todays'],
+        ascending: true
+      });
+      var spec = new Evernote.NoteStore.NotesMetadataResultSpec({
+        includeTitle: true,
+        includeContentLength: true,
+        includeCreated: true,
+        includeUpdated: true,
+        includeDeleted: true,
+        includeUpdateSequenceNum: true,
+        includeNotebookGuid: true,
+        includeTagGuids: true,
+        includeAttributes: true,
+        includeLargestResourceMime: true,
+        includeLargestResourceSize: true,
+      });
+      noteStore.findNotesMetadata(oauthToken, filter, 0, 500, spec).then(function(notesMetadataList) {
+        // data.notes is the list of matching notes
+        console.log(notesMetaDataList);
+        resolve();
+      }, reject);
+    });
+
+  }
+
+  createTodaysNoteWithImage (oauthToken, file) {
+    return new Promise((resolve, reject) => {
+      const authenticatedClient = new Evernote.Client({
+        token: oauthToken,
+        sandbox: true,
+        china: false,
+      });
+      const noteStore = authenticatedClient.getNoteStore();
+      noteStore.listNotebooks().then((notebooks) => {
+        const diary = notebooks.find((notebook) => {
+          return notebook.name === 'Diary';
+        });
+        const noteData = {
+          title: 'Todays image note',
+          body: 'Hi! This is today.\n Foo Bar.',
+          body2: 'Nothing.',
+          file: file
+        }
+        this.makeImageNote(noteStore, noteData, diary).then(resolve, reject);
+      }, reject);
+
+    });
+  }
+
+  makeImageNote(noteStore, noteData, parentNotebook) {
+    // imageFile, imageDataString
+    // Create resource
+    const dataBuf = Buffer.from(noteData.file.data, 'base64');
+    const hash = crypto.createHmac('md5', secret)
+      .update(dataBuf)
+      .digest('hex');
+
+    var data = new Evernote.Types.Data();
+    data.body = dataBuf;
+    data.size = noteData.file.size;
+    data.bodyHash = hash;
+    var resource = new Evernote.Types.Resource();
+    resource.mime = noteData.file.type;
+    resource.data = data;
+    var attr = new Evernote.Types.ResourceAttributes();
+    attr.fileName = noteData.file.name;
+    resource.attributes = attr;
+
+    // Create body
+    var nBody = '<?xml version="1.0" encoding="UTF-8"?>';
+    nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
+    nBody += "<en-note>";
+    nBody += noteData.body;
+    nBody += '<en-media type="';
+    nBody += resource.mime;
+    nBody += '" hash="';
+    nBody += resource.data.bodyHash;
+    nBody += '" /><br />';
+    nBody += noteData.body2;
+    nBody += "</en-note>";
+
+    // Create note object
+    var ourNote = new Evernote.Types.Note();
+    ourNote.title = noteData.title;
+    ourNote.content = nBody;
+    ourNote.resources = [resource];
+
+    // parentNotebook is optional; if omitted, default notebook is used
+    if (parentNotebook && parentNotebook.guid) {
+      ourNote.notebookGuid = parentNotebook.guid;
+    }
+
+    return new Promise((resolve, reject) => {
+      // Attempt to create note in Evernote account (returns a Promise)
+      noteStore.createNote(ourNote).then(resolve, reject);
     });
   }
 

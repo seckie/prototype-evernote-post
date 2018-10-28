@@ -3,8 +3,12 @@ extends layout
 block content
   h1 Today's note was created
   p Sign in user: #{user.name}
-  h2= note.title
-  div= note.content
+  //h2= note.title
+  //div= note.content
   p
-    a(href="/") Back to index   
+    input(type="file" name="imagefiles[]" id="imagefiles" multiple accept=".jpg,.jpeg,.png,.gif")
+    a(href="/") Back to index
+  #list
 
+  script(src="https://code.jquery.com/jquery-3.3.1.min.js")
+  script(src="/javascripts/script.js")
