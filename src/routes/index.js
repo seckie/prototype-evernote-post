@@ -47,14 +47,6 @@ router.get('/create_todays_note', (req, res, next) => {
   res.render('create_todays_note', {
     user: req.session.user
   });
-  //evernoteService.createTodaysNote(req.session.oauthToken).then((note) => {
-  //  res.render('create_todays_note', {
-  //    user: req.session.user,
-  //    note: note
-  //  });
-  //}, (error) => {
-  //  res.redirect('/');
-  //})
 });
 
 router.post('/create_image_note', (req, res, next) => {
@@ -75,23 +67,11 @@ router.post('/create_image_note', (req, res, next) => {
   };
   if (req.body.fileData) {
     evernoteService.createTodaysNoteWithImage(req.session.oauthToken, file).then((note) => {
-      //res.render('create_image_note', {
-      //  user: req.session.user,
-      //  note: note
-      //});
       res.send({success: true, note: note});
     }, (error) => {
       res.send({success: false});
     });
   }
-  //evernoteService.createTodaysNote(req.session.oauthToken).then((note) => {
-  //  res.render('create_todays_note', {
-  //    user: req.session.user,
-  //    note: note
-  //  });
-  //}, (error) => {
-  //  res.redirect('/');
-  //})
 });
 router.get('/create_image_note')
 
