@@ -104,18 +104,18 @@ class EvernoteService {
     const dataBuf = noteData.file.buffer;
     const hexHash = crypto.createHash('md5').update(dataBuf).digest('hex');
 
-    var data = new Evernote.Types.Data();
+    const data = new Evernote.Types.Data();
     data.body = dataBuf;
     data.size = noteData.file.size;
-    var resource = new Evernote.Types.Resource();
+    const resource = new Evernote.Types.Resource();
     resource.mime = noteData.file.mimetype;
     resource.data = data;
-    var attr = new Evernote.Types.ResourceAttributes();
+    const attr = new Evernote.Types.ResourceAttributes();
     attr.fileName = noteData.file.originalname;
     resource.attributes = attr;
 
     // Create body
-    var nBody = '<?xml version="1.0" encoding="UTF-8"?>';
+    let nBody = '<?xml version="1.0" encoding="UTF-8"?>';
     nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
     nBody += '<en-note>';
     nBody += noteData.body;
@@ -134,7 +134,7 @@ class EvernoteService {
     console.log(nBody);
 
     // Create note object
-    var ourNote = new Evernote.Types.Note();
+    const ourNote = new Evernote.Types.Note();
     ourNote.title = noteData.title;
     ourNote.content = nBody;
     ourNote.resources = [resource];
@@ -149,12 +149,12 @@ class EvernoteService {
   }
 
   makeNote(noteStore, noteTitle, noteBody, parentNotebook) {
-    var nBody = '<?xml version="1.0" encoding="UTF-8"?>';
+    let nBody = '<?xml version="1.0" encoding="UTF-8"?>';
     nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
     nBody += "<en-note>" + noteBody + "</en-note>";
 
     // Create note object
-    var ourNote = new Evernote.Types.Note();
+    const ourNote = new Evernote.Types.Note();
     ourNote.title = noteTitle;
     ourNote.content = nBody;
 
@@ -168,6 +168,6 @@ class EvernoteService {
   }
 }
 
-var evernoteService = new EvernoteService();
+const evernoteService = new EvernoteService();
 
 module.exports = evernoteService;

@@ -1,7 +1,7 @@
-var express = require('express');
-var router = express.Router();
-var createError = require('http-errors');
-var evernoteService = require('../services/evernote-service.js');
+const express = require('express');
+const router = express.Router();
+const createError = require('http-errors');
+const evernoteService = require('../services/evernote-service.js');
 const isAuthenticated = require('../middlewares/isAuthenticated');
 const {MAX_FILE_SIZE, CALLBACK_URL} = require('../config/app-config');
 

@@ -13,7 +13,7 @@ function handleFileSelect (e) {
     var reader = new FileReader();
     reader.onload = (handleOnloadAsDataURL)(f);
     reader.readAsDataURL(f);
-    const formData = new FormData();
+    var formData = new FormData();
     formData.append('fileData', f);
     formData.append('fileLastModified', f.lastModified);
 
