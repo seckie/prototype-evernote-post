@@ -15,12 +15,9 @@ function handleFileSelect (e) {
     reader.readAsDataURL(f);
     const formData = new FormData();
     formData.append('fileData', f);
-    formData.append('fileName', f.name);
-    formData.append('fileType', f.type);
-    formData.append('fileSize', f.size);
+    formData.append('fileLastModified', f.lastModified);
 
     $.ajax('/create_image_note', {
-      //dataType: 'json',
       method: 'POST',
       data: formData,
       contentType: false,
@@ -32,11 +29,6 @@ function handleFileSelect (e) {
         console.log(arguments);
       }
     })
-    /*
-    var reader2 = new FileReader();
-    reader2.onload = (handleOnloadAsArrayBuffer)(f);
-    reader2.readAsArrayBuffer(f);
-    */
   }
 }
 

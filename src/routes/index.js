@@ -2,16 +2,24 @@ var express = require('express');
 var router = express.Router();
 var createError = require('http-errors');
 var evernoteService = require('../services/evernote-service.js');
-var callbackUrl = "http://localhost:3000/oauth_callback";
 const isAuthenticated = require('../middlewares/isAuthenticated');
+const {MAX_FILE_SIZE, CALLBACK_URL} = require('../config/app-config');
 
 const multer = require('multer');
+const storage = multer.memoryStorage(); // Don't use disk storage
+const upload = multer({
+  storage: storage,
+  dest: 'uploads/',
+  limits: {
+    fileSize: MAX_FILE_SIZE
+  }
+});
 
 router.get('/', (req, res, next) => {
   res.render('index', { title: 'Express' });
 });
 router.get('/oauth_signin', (req, res, next) => {
-  evernoteService.getRequestToken(callbackUrl).then(({oauthToken, oauthTokenSecret, authorizeUrl}) => {
+  evernoteService.getRequestToken(CALLBACK_URL).then(({oauthToken, oauthTokenSecret, authorizeUrl}) => {
     req.session.oauthToken = oauthToken;
     req.session.oauthTokenSecret = oauthTokenSecret;
     res.redirect(authorizeUrl); // send the user to Evernote
@@ -37,52 +45,40 @@ router.get('/oauth_callback', (req, res, next) => {
 });
 
 router.get('/create_todays_note', isAuthenticated, (req, res, next) => {
-  evernoteService.tempListSpecificNote(req.session.oauthToken).then(function (res) {
-    console.log(res);
-  }, function (rej) {
-    console.log(rej);
-  });
-
   res.render('create_todays_note', {
     user: req.session.user
   });
 });
 
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  dest: 'uploads/',
-  fileSize: 500000
-});
-
 router.post('/create_image_note', isAuthenticated, upload.single('fileData'), (req, res, next) => {
-  if (!req.body) {
-    console.log('No body');
-    return res.send({error: true, message: 'No request body'});
+  if (!req.body || !req.file) {
+    console.log('No body or file');
+    return res.send({error: true, message: 'No request body or file'});
   }
-
-  /*
-  var file = {
-    type: req.body.fileType,
-    name: req.body.fileName,
-    size: req.body.fileSize,
-    //data: atob(req.body.fileB64)
-    data: req.body.fileData
-  };
-  */
-  const data = {
-    body: req.body,
-    file: req.file
-  };
-  //if (req.body.fileData) {
+  const data = Object.assign({}, req.file, {
+    lastModified: parseInt(req.body.fileLastModified, 10)
+  });
   if (req.file) {
     evernoteService.createTodaysNoteWithImage(req.session.oauthToken, data).then((note) => {
-      res.send({success: true, note: note});
-    }, (error) => {
-      res.send({success: false});
+      res.send({
+        success: true,
+        note: note
+      });
+    }, (err) => {
+      res.send({
+        success: false,
+        message: err.message
+      });
+    });
+  }
+}, (err, req, res, next) => {
+  // Upload error
+  if (err) {
+    res.send({
+      success: false,
+      message: err.message
     });
   }
 });
-router.get('/create_image_note')
 
 module.exports = router;

@@ -1,9 +1,8 @@
 'use strict';
+const crypto = require('crypto');
 const Evernote = require('evernote');
 const evernoteKey = require('../config/evernote-key.json');
-
-const crypto = require('crypto');
-const secret = 'abcdefg';
+const {SANDBOX} = require('../config/app-config');
 
 class EvernoteService {
   constructor() {
@@ -11,7 +10,7 @@ class EvernoteService {
     this.client = new Evernote.Client({
       consumerKey: evernoteKey.consumerKey,
       consumerSecret: evernoteKey.consumerSecret,
-      sandbox: true, // change to false when you are ready to switch to production
+      sandbox: SANDBOX, 
       china: false, // change to true if you wish to connect to YXBJ - most of you won't
     });
   }
@@ -49,83 +48,38 @@ class EvernoteService {
     });
   }
   getUser (oauthToken) {
-    return new Promise ((resolve, reject) => {
-      const authenticatedClient = new Evernote.Client({
-        token: oauthToken,
-        sandbox: true,
-        china: false,
-      });
-      const userStore = authenticatedClient.getUserStore();
-      userStore.getUser().then((user) => {
-        resolve(user);
-      }, reject);
-    })
-  }
-
-  writeNote (oauthToken) {
-    // oauthAccessToken is the token you need;
-    var userStore = authenticatedClient.getUserStore();
-    var noteStore = authenticatedClient.getNoteStore();
-    noteStore.listNotebooks().then(function (notebooks) {
-      console.log(notebooks); // the user's notebooks!
+    const authenticatedClient = new Evernote.Client({
+      token: oauthToken,
+      sandbox: SANDBOX, 
+      china: false,
     });
+    const userStore = authenticatedClient.getUserStore();
+    // return promise with user object
+    return userStore.getUser();
   }
 
   createTodaysNote (oauthToken) {
     return new Promise((resolve, reject) => {
       const authenticatedClient = new Evernote.Client({
         token: oauthToken,
-        sandbox: true,
+        sandbox: SANDBOX, 
         china: false,
       });
       const noteStore = authenticatedClient.getNoteStore();
       noteStore.listNotebooks().then((notebooks) => {
-        console.log(notebooks); // the user's notebooks!
         const diary = notebooks.find((notebook) => {
           return notebook.name === 'Diary';
         });
         this.makeNote(noteStore, 'Todays note', 'Hi! This is today.\n Foo Bar.', diary).then(resolve, reject);
       }, reject);
-
     });
-  }
-
-  tempListSpecificNote(oauthToken) {
-    const authenticatedClient = new Evernote.Client({
-      token: oauthToken,
-    });
-    const noteStore = authenticatedClient.getNoteStore();
-    var filter = new Evernote.NoteStore.NoteFilter({
-      words: ['hoge'],
-      ascending: true
-    });
-    var spec = new Evernote.NoteStore.NotesMetadataResultSpec({
-      includeTitle: true,
-      includeContentLength: true,
-      includeCreated: true,
-      includeUpdated: true,
-      includeDeleted: true,
-      includeUpdateSequenceNum: true,
-      includeNotebookGuid: true,
-      includeTagGuids: true,
-      includeAttributes: true,
-      includeLargestResourceMime: true,
-      includeLargestResourceSize: true,
-    });
-    //noteStore.listNotebooks().then(function (notebook) { console.log(notebook); });
-    var spec2 = new Evernote.NoteStore.NoteResultSpec({
-      includeContent: true,
-      includeResourcesData: true
-    });
-    return noteStore.getNoteWithResultSpec('70ab5d4f-f144-47f1-a79c-8eec2c4a45b2',spec2);
-    //return noteStore.findNotesMetadata('foo', 0, 500, spec);
   }
 
   createTodaysNoteWithImage (oauthToken, data) {
     return new Promise((resolve, reject) => {
       const authenticatedClient = new Evernote.Client({
         token: oauthToken,
-        sandbox: true,
+        sandbox: SANDBOX,
         china: false,
       });
       const noteStore = authenticatedClient.getNoteStore();
@@ -137,13 +91,8 @@ class EvernoteService {
           title: 'Todays image note',
           body: 'Hi! This is today.\n Foo Bar.',
           body2: 'Nothing.',
-          file: {
-            buffer: data.file.buffer,
-            size: data.file.size,
-            type: data.file.mimetype,
-            name: data.file.originalname
-          }
-        }
+          file: data
+        };
         this.makeImageNote(noteStore, noteData, diary).then(resolve, reject);
       }, reject);
 
@@ -151,30 +100,27 @@ class EvernoteService {
   }
 
   makeImageNote(noteStore, noteData, parentNotebook) {
-    // imageFile, imageDataString
     // Create resource
-    //const dataBuf = Buffer.from(noteData.file.data, 'base64');
-    //const dataBuf = noteData.file.data;
     const dataBuf = noteData.file.buffer;
     const hexHash = crypto.createHash('md5').update(dataBuf).digest('hex');
-    const binaryHash = crypto.createHash('md5').update(dataBuf).digest('binary');
 
     var data = new Evernote.Types.Data();
     data.body = dataBuf;
     data.size = noteData.file.size;
-    //data.bodyHash = binaryHash;
     var resource = new Evernote.Types.Resource();
-    resource.mime = noteData.file.type;
+    resource.mime = noteData.file.mimetype;
     resource.data = data;
     var attr = new Evernote.Types.ResourceAttributes();
-    attr.fileName = noteData.file.name;
+    attr.fileName = noteData.file.originalname;
     resource.attributes = attr;
 
     // Create body
     var nBody = '<?xml version="1.0" encoding="UTF-8"?>';
     nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
-    nBody += "<en-note>";
+    nBody += '<en-note>';
     nBody += noteData.body;
+    nBody += '<br/>';
+    nBody += new Date(noteData.file.lastModified).toString();
     nBody += '<div><en-media'
     nBody += ' hash="';
     nBody += hexHash;
@@ -217,10 +163,8 @@ class EvernoteService {
       ourNote.notebookGuid = parentNotebook.guid;
     }
 
-    return new Promise((resolve, reject) => {
-      // Attempt to create note in Evernote account (returns a Promise)
-      noteStore.createNote(ourNote).then(resolve, reject);
-    });
+    // Attempt to create note in Evernote account (returns a Promise)
+    return noteStore.createNote(ourNote);
   }
 }
 
