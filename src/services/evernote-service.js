@@ -91,40 +91,37 @@ class EvernoteService {
   }
 
   tempListSpecificNote(oauthToken) {
-    return new Promise((resolve, reject) => {
-      const authenticatedClient = new Evernote.Client({
-        token: oauthToken,
-        sandbox: true,
-        china: false,
-      });
-      const noteStore = authenticatedClient.getNoteStore();
-      var filter = new Evernote.NoteStore.NoteFilter({
-        words: ['2Todays'],
-        ascending: true
-      });
-      var spec = new Evernote.NoteStore.NotesMetadataResultSpec({
-        includeTitle: true,
-        includeContentLength: true,
-        includeCreated: true,
-        includeUpdated: true,
-        includeDeleted: true,
-        includeUpdateSequenceNum: true,
-        includeNotebookGuid: true,
-        includeTagGuids: true,
-        includeAttributes: true,
-        includeLargestResourceMime: true,
-        includeLargestResourceSize: true,
-      });
-      noteStore.findNotesMetadata(oauthToken, filter, 0, 500, spec).then(function(notesMetadataList) {
-        // data.notes is the list of matching notes
-        console.log(notesMetaDataList);
-        resolve();
-      }, reject);
+    const authenticatedClient = new Evernote.Client({
+      token: oauthToken,
     });
-
+    const noteStore = authenticatedClient.getNoteStore();
+    var filter = new Evernote.NoteStore.NoteFilter({
+      words: ['hoge'],
+      ascending: true
+    });
+    var spec = new Evernote.NoteStore.NotesMetadataResultSpec({
+      includeTitle: true,
+      includeContentLength: true,
+      includeCreated: true,
+      includeUpdated: true,
+      includeDeleted: true,
+      includeUpdateSequenceNum: true,
+      includeNotebookGuid: true,
+      includeTagGuids: true,
+      includeAttributes: true,
+      includeLargestResourceMime: true,
+      includeLargestResourceSize: true,
+    });
+    //noteStore.listNotebooks().then(function (notebook) { console.log(notebook); });
+    var spec2 = new Evernote.NoteStore.NoteResultSpec({
+      includeContent: true,
+      includeResourcesData: true
+    });
+    return noteStore.getNoteWithResultSpec('70ab5d4f-f144-47f1-a79c-8eec2c4a45b2',spec2);
+    //return noteStore.findNotesMetadata('foo', 0, 500, spec);
   }
 
-  createTodaysNoteWithImage (oauthToken, file) {
+  createTodaysNoteWithImage (oauthToken, data) {
     return new Promise((resolve, reject) => {
       const authenticatedClient = new Evernote.Client({
         token: oauthToken,
@@ -140,7 +137,12 @@ class EvernoteService {
           title: 'Todays image note',
           body: 'Hi! This is today.\n Foo Bar.',
           body2: 'Nothing.',
-          file: file
+          file: {
+            buffer: data.file.buffer,
+            size: data.file.size,
+            type: data.file.mimetype,
+            name: data.file.originalname
+          }
         }
         this.makeImageNote(noteStore, noteData, diary).then(resolve, reject);
       }, reject);
@@ -151,15 +153,16 @@ class EvernoteService {
   makeImageNote(noteStore, noteData, parentNotebook) {
     // imageFile, imageDataString
     // Create resource
-    const dataBuf = Buffer.from(noteData.file.data, 'base64');
-    const hash = crypto.createHmac('md5', secret)
-      .update(dataBuf)
-      .digest('hex');
+    //const dataBuf = Buffer.from(noteData.file.data, 'base64');
+    //const dataBuf = noteData.file.data;
+    const dataBuf = noteData.file.buffer;
+    const hexHash = crypto.createHash('md5').update(dataBuf).digest('hex');
+    const binaryHash = crypto.createHash('md5').update(dataBuf).digest('binary');
 
     var data = new Evernote.Types.Data();
     data.body = dataBuf;
     data.size = noteData.file.size;
-    data.bodyHash = hash;
+    //data.bodyHash = binaryHash;
     var resource = new Evernote.Types.Resource();
     resource.mime = noteData.file.type;
     resource.data = data;
@@ -172,13 +175,17 @@ class EvernoteService {
     nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
     nBody += "<en-note>";
     nBody += noteData.body;
-    nBody += '<en-media type="';
+    nBody += '<div><en-media'
+    nBody += ' hash="';
+    nBody += hexHash;
+    nBody += '"';
+    nBody += ' type="';
     nBody += resource.mime;
-    nBody += '" hash="';
-    nBody += resource.data.bodyHash;
-    nBody += '" /><br />';
+    nBody += '"';
+    nBody += ' /></div>';
     nBody += noteData.body2;
     nBody += "</en-note>";
+    console.log(nBody);
 
     // Create note object
     var ourNote = new Evernote.Types.Note();
@@ -191,10 +198,8 @@ class EvernoteService {
       ourNote.notebookGuid = parentNotebook.guid;
     }
 
-    return new Promise((resolve, reject) => {
-      // Attempt to create note in Evernote account (returns a Promise)
-      noteStore.createNote(ourNote).then(resolve, reject);
-    });
+    // Attempt to create note in Evernote account (returns a Promise)
+    return noteStore.createNote(ourNote);
   }
 
   makeNote(noteStore, noteTitle, noteBody, parentNotebook) {

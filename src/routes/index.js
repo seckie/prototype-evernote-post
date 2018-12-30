@@ -3,6 +3,9 @@ var router = express.Router();
 var createError = require('http-errors');
 var evernoteService = require('../services/evernote-service.js');
 var callbackUrl = "http://localhost:3000/oauth_callback";
+const isAuthenticated = require('../middlewares/isAuthenticated');
+
+const multer = require('multer');
 
 router.get('/', (req, res, next) => {
   res.render('index', { title: 'Express' });
@@ -33,11 +36,7 @@ router.get('/oauth_callback', (req, res, next) => {
   });
 });
 
-router.get('/create_todays_note', (req, res, next) => {
-  if (!req.session.oauthToken) {
-    console.log('No token')
-    return res.redirect('/');
-  }
+router.get('/create_todays_note', isAuthenticated, (req, res, next) => {
   evernoteService.tempListSpecificNote(req.session.oauthToken).then(function (res) {
     console.log(res);
   }, function (rej) {
@@ -49,15 +48,20 @@ router.get('/create_todays_note', (req, res, next) => {
   });
 });
 
-router.post('/create_image_note', (req, res, next) => {
-  if (!req.session.oauthToken) {
-    console.log('No token?')
-    return res.send({error: true, message: 'No oauth token'});
-  }
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  dest: 'uploads/',
+  fileSize: 500000
+});
+
+router.post('/create_image_note', isAuthenticated, upload.single('fileData'), (req, res, next) => {
   if (!req.body) {
     console.log('No body');
     return res.send({error: true, message: 'No request body'});
   }
+
+  /*
   var file = {
     type: req.body.fileType,
     name: req.body.fileName,
@@ -65,8 +69,14 @@ router.post('/create_image_note', (req, res, next) => {
     //data: atob(req.body.fileB64)
     data: req.body.fileData
   };
-  if (req.body.fileData) {
-    evernoteService.createTodaysNoteWithImage(req.session.oauthToken, file).then((note) => {
+  */
+  const data = {
+    body: req.body,
+    file: req.file
+  };
+  //if (req.body.fileData) {
+  if (req.file) {
+    evernoteService.createTodaysNoteWithImage(req.session.oauthToken, data).then((note) => {
       res.send({success: true, note: note});
     }, (error) => {
       res.send({success: false});
